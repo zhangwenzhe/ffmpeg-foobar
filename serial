@@ -1,0 +1,51 @@
+./fftools//ffplay.c:    if (q->abort_request)
+./fftools//ffplay.c:        q->serial++;
+./fftools//ffplay.c:    pkt1->serial = q->serial;
+./fftools//ffplay.c:    if (!q->last_pkt)
+./fftools//ffplay.c:        q->first_pkt = pkt1;
+./fftools//ffplay.c:        q->last_pkt->next = pkt1;
+./fftools//ffplay.c:    q->last_pkt = pkt1;
+./fftools//ffplay.c:    q->nb_packets++;
+./fftools//ffplay.c:    q->size += pkt1->pkt.size + sizeof(*pkt1);
+./fftools//ffplay.c:    q->duration += pkt1->pkt.duration;
+./fftools//ffplay.c:    SDL_CondSignal(q->cond);
+./fftools//ffplay.c:    SDL_LockMutex(q->mutex);
+./fftools//ffplay.c:    SDL_UnlockMutex(q->mutex);
+./fftools//ffplay.c:    q->mutex = SDL_CreateMutex();
+./fftools//ffplay.c:    if (!q->mutex) {
+./fftools//ffplay.c:    q->cond = SDL_CreateCond();
+./fftools//ffplay.c:    if (!q->cond) {
+./fftools//ffplay.c:    q->abort_request = 1;
+./fftools//ffplay.c:    SDL_LockMutex(q->mutex);
+./fftools//ffplay.c:    for (pkt = q->first_pkt; pkt; pkt = pkt1) {
+./fftools//ffplay.c:    q->last_pkt = NULL;
+./fftools//ffplay.c:    q->first_pkt = NULL;
+./fftools//ffplay.c:    q->nb_packets = 0;
+./fftools//ffplay.c:    q->size = 0;
+./fftools//ffplay.c:    q->duration = 0;
+./fftools//ffplay.c:    SDL_UnlockMutex(q->mutex);
+./fftools//ffplay.c:    SDL_DestroyMutex(q->mutex);
+./fftools//ffplay.c:    SDL_DestroyCond(q->cond);
+./fftools//ffplay.c:    SDL_LockMutex(q->mutex);
+./fftools//ffplay.c:    q->abort_request = 1;
+./fftools//ffplay.c:    SDL_CondSignal(q->cond);
+./fftools//ffplay.c:    SDL_UnlockMutex(q->mutex);
+./fftools//ffplay.c:    SDL_LockMutex(q->mutex);
+./fftools//ffplay.c:    q->abort_request = 0;
+./fftools//ffplay.c:    SDL_UnlockMutex(q->mutex);
+./fftools//ffplay.c:    SDL_LockMutex(q->mutex);
+./fftools//ffplay.c:        if (q->abort_request) {
+./fftools//ffplay.c:        pkt1 = q->first_pkt;
+./fftools//ffplay.c:            q->first_pkt = pkt1->next;
+./fftools//ffplay.c:            if (!q->first_pkt)
+./fftools//ffplay.c:                q->last_pkt = NULL;
+./fftools//ffplay.c:            q->nb_packets--;
+./fftools//ffplay.c:            q->size -= pkt1->pkt.size + sizeof(*pkt1);
+./fftools//ffplay.c:            q->duration -= pkt1->pkt.duration;
+./fftools//ffplay.c:            SDL_CondWait(q->cond, q->mutex);
+./fftools//ffplay.c:    SDL_UnlockMutex(q->mutex);
+./fftools//ffplay.c:           !f->pktq->abort_request) {
+./fftools//ffplay.c:    if (f->pktq->abort_request)
+./fftools//ffplay.c:           !f->pktq->abort_request) {
+./fftools//ffplay.c:    if (f->pktq->abort_request)
+./fftools//ffplay.c:    if (f->rindex_shown && fp->serial == f->pktq->serial)
