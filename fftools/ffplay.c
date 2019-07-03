@@ -592,6 +592,8 @@ static int decoder_decode_frame(Decoder *d, AVFrame *frame, AVSubtitle *sub) {
         AVPacket pkt;
 
         if (d->queue->serial == d->pkt_serial) {
+            do {
+                if (d->queue->abort_request)
                     return -1;
 
                 switch (d->avctx->codec_type) {
@@ -3230,9 +3232,6 @@ static void toggle_audio_display(VideoState *is)
     }
 }
 
-/* check if there is an event coming, 
-if yes, return the event and handle the event properly, 
-if not, just loop for refreshing the video display */
 static void refresh_loop_wait_event(VideoState *is, SDL_Event *event) {
     double remaining_time = 0.0;
     SDL_PumpEvents();

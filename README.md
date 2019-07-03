@@ -1,3 +1,10 @@
+# FFmpeg-foobar README
+This is an modified version of ffmpeg that is added two filters: vf\_foobar and af\_volumedetect
+* vf\_foobar: does object detect and submit the detect information to a server by calling /home/zwz/collector/post-data-fire.py, which belongs to another project of post-data-borard. The main file is libavfilter/vf\_foobar.c. It has two modes: normal mode and autotrigger mode. the command line is: ffmpeg -i /dev/video0 -vf foobar=mode=0 ... to determine the mode. It relies on libmymatcher, which relies on opencv. See libmymatcher/readme.txt for more information. The compile\_and\_install.sh compiles the libavfilter.so with libmymatcher.
+
+* af\_volumedetect: just to detect the volume and if it reaches a threshold, do something... the file is at libavfilter/af\_volumedetect. 
+
+
 FFmpeg README
 =============
 
