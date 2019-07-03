@@ -4,6 +4,7 @@ This is an modified version of ffmpeg that is added two filters: vf\_foobar and 
 
 * af\_volumedetect: just to detect the volume and if it reaches a threshold, do something... the file is at libavfilter/af\_volumedetect. 
 
+Recommended configure: disable static, enable shared
 
 FFmpeg README
 =============
