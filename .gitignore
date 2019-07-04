@@ -95,7 +95,6 @@ libavutil/libavutil.pc
 libavutil/libavutil.so.56
 libavutil/libavutil.ver
 libavutil/libavutil.version
-libmymatcher_opencv3-3.zip
 libswresample/libswresample.pc
 libswresample/libswresample.so.3
 libswresample/libswresample.ver
