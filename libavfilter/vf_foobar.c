@@ -175,14 +175,24 @@ static void draw_vline_YUV420P(AVFrame *in, int x, int yfrom, int yto){
 	}
 }
 
+static void print_once(int pxfmt){
+	static int one = 1;
+	if(one){
+		av_log(NULL, AV_LOG_INFO, "WARNING: unsupported pix format %d, only draw grey box\n", pxfmt); 
+		one = 0;
+	}
+	
+}
+
 static void draw_vline(AVFrame *in, int x, int yfrom, int yto){
 	if(pxfmt == AV_PIX_FMT_GRAY8){
 		return draw_vline_GRAY8(in, x, yfrom, yto);
 	}else if(pxfmt == AV_PIX_FMT_YUV420P){
 		return draw_vline_YUV420P(in, x, yfrom, yto);
 	}else{
-		av_log(NULL, AV_LOG_INFO, "unsupported pix format %d\n", pxfmt); 
-		return;
+		//av_log(NULL, AV_LOG_INFO, "unsupported pix format %d\n", pxfmt); 
+		print_once(pxfmt);
+		return draw_vline_GRAY8(in, x, yfrom, yto);
 	}
 }
 
@@ -207,8 +217,9 @@ static void draw_pline(AVFrame *in, int y, int xfrom, int xto){
 	}else if(pxfmt == AV_PIX_FMT_YUV420P){
 		return draw_pline_YUV420P(in, y, xfrom, xto);
 	}else{
-		av_log(NULL, AV_LOG_INFO, "unsupported pix format %d\n", pxfmt); 
-		return;
+		//av_log(NULL, AV_LOG_INFO, "unsupported pix format %d\n", pxfmt); 
+		print_once(pxfmt);
+		return draw_pline_GRAY8(in, y, xfrom, xto);
 	}
 }
 
