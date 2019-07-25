@@ -38,6 +38,10 @@ static int x[NUM_XY];
 static int y[NUM_XY];
 static int num = 0;
 static int vnum = 0;
+static int pxfmt = 0;
+static int w = 0;
+static int h = 0;
+static int d = 0;
 
 /*
 typedef struct FoobarContext {
@@ -155,51 +159,92 @@ static int query_formats(AVFilterContext *ctx)
 }
 
 
-static void draw_vline(AVFrame *in, int x, int yfrom, int yto, int color){
+
+static void draw_vline_GRAY8(AVFrame *in, int x, int yfrom, int yto){
 	int i;
-	if(in->format == 0){
-		for(i=yfrom/2; i<yto/2; i++){
-			in->data[1][i*(in->width/2) + x/2] = color;
-			in->data[2][i*(in->width/2) + x/2] = color;
-		}
-	}
-
-}
-
-
-static void draw_pline(AVFrame *in, int y, int xfrom, int xto, int color){
-	int i;
-	if(in->format == 0){
-		for(i=xfrom/2; i<xto/2; i++){
-			in->data[1][(y/2)*(in->width/2) + i] = color;
-			in->data[2][(y/2)*(in->width/2) + i] = color;
-		}
-	}
-	
-}
-
-static void draw_pline_y(AVFrame *in, int y, int xfrom, int xto, int color){
-	int i;
-	if(in->format == 0){
-		for(i=xfrom; i<xto; i++){
-			in->data[0][y*in->width + i] = color;
-		}
+	for(i=yfrom; i<yto; i++){
+		in->data[0][i*(in->width) + x] = 255;
 	}
 }
 
+static void draw_vline_YUV420P(AVFrame *in, int x, int yfrom, int yto){
+	int i;
+	for(i=yfrom/2; i<yto/2; i++){
+		in->data[1][i*(in->width/2) + x/2] = 0;
+		in->data[2][i*(in->width/2) + x/2] = 0;
+	}
+}
+
+static void draw_vline(AVFrame *in, int x, int yfrom, int yto){
+	if(pxfmt == AV_PIX_FMT_GRAY8){
+		return draw_vline_GRAY8(in, x, yfrom, yto);
+	}else if(pxfmt == AV_PIX_FMT_YUV420P){
+		return draw_vline_YUV420P(in, x, yfrom, yto);
+	}else{
+		av_log(NULL, AV_LOG_INFO, "unsupported pix format %d\n", pxfmt); 
+		return;
+	}
+}
+
+static void draw_pline_GRAY8(AVFrame *in, int y, int xfrom, int xto){
+	int i;
+	for(i=xfrom; i<xto; i++){
+		in->data[0][y*in->width + i] = 255;
+	}
+}
+
+static void draw_pline_YUV420P(AVFrame *in, int y, int xfrom, int xto){
+	int i;
+	for(i=xfrom/2; i<xto/2; i++){
+		in->data[1][(y/2)*(in->width/2) + i] = 0;
+		in->data[2][(y/2)*(in->width/2) + i] = 0;
+	}
+}
+
+static void draw_pline(AVFrame *in, int y, int xfrom, int xto){
+	if(pxfmt == AV_PIX_FMT_GRAY8){
+		return draw_pline_GRAY8(in, y, xfrom, xto);
+	}else if(pxfmt == AV_PIX_FMT_YUV420P){
+		return draw_pline_YUV420P(in, y, xfrom, xto);
+	}else{
+		av_log(NULL, AV_LOG_INFO, "unsupported pix format %d\n", pxfmt); 
+		return;
+	}
+}
+
+//static void draw_box_grey(AVFrame *in, int x, int y, int w, int h){
+	//int color = 255;
+	//
+	//if(x<=0 || x+w >= in->width || y<=0 || y+h >= in->height ){
+		//return;
+	//}
+	//
+	//if(in->width/2 >= x && in->width/2 <= x+w && in->height/2 >= y && in->height/2 <= y+h){
+		//target=1;
+	//}else{
+		//target=0;
+	//}
+//
+	////av_log(NULL, AV_LOG_INFO, "draw_box x %d, y %d, w %d, h %d, rx %d, ry %d\n", 
+		////y, x, w, h, x+w, y+h);
+	//
+	////draw_pline_y(in, y, x, x+w, 255);
+	////draw_pline_y(in, y+h, x, x+w, 255);
+	//
+	//draw_pline_y(in, y, x, x+w, color);
+	//draw_pline_y(in, y+h, x, x+w, color);
+	//draw_vline_y(in, x, y, y+h, color);
+	//draw_vline_y(in, x+w, y, y+h, color);
+//}
 
 static void draw_box(AVFrame *in, int x, int y, int w, int h){
-	int color;
-	
 	if(x<=0 || x+w >= in->width || y<=0 || y+h >= in->height ){
 		return;
 	}
 	
 	if(in->width/2 >= x && in->width/2 <= x+w && in->height/2 >= y && in->height/2 <= y+h){
-		color = 255;
 		target=1;
 	}else{
-		color = 0;
 		target=0;
 	}
 
@@ -209,11 +254,31 @@ static void draw_box(AVFrame *in, int x, int y, int w, int h){
 	//draw_pline_y(in, y, x, x+w, 255);
 	//draw_pline_y(in, y+h, x, x+w, 255);
 	
-	draw_pline(in, y, x, x+w, color);
-	draw_pline(in, y+h, x, x+w, color);
-	draw_vline(in, x, y, y+h, color);
-	draw_vline(in, x+w, y, y+h, color);
+	draw_pline(in, y, x, x+w);
+	draw_pline(in, y+h, x, x+w);
+	draw_vline(in, x, y, y+h);
+	draw_vline(in, x+w, y, y+h);
 }
+
+//static void draw_cross_GREY8(AVFrame *in){
+	//int lenth = in->height/20;
+	//int s;
+	//if(scale <= SCALE_TIME){
+		//s = scale;
+	//}else if(scale <= SCALE_TIME*2){
+		//s = SCALE_TIME*2 - scale;
+	//}else{
+		//s = 0;
+	//}
+	//s=s*SCALE_RANGE;
+	//
+	//draw_pline_y(in, in->height/2, in->width/2 - lenth -s, in->width/2 - lenth + lenth/2 -s, 255);
+	//draw_pline_y(in, in->height/2, in->width/2 + lenth/2 + s, in->width/2 + lenth + s, 255);
+	//draw_vline_y(in, in->width/2, in->height/2 - lenth -s, in->height/2 - lenth + lenth/2 -s, 255);
+	//draw_vline_y(in, in->width/2, in->height/2 + lenth/2 + s, in->height/2 + lenth +s, 255);
+	//scale++;
+//}
+
 
 static void draw_cross(AVFrame *in){
 	int lenth = in->height/20;
@@ -227,10 +292,10 @@ static void draw_cross(AVFrame *in){
 	}
 	s=s*SCALE_RANGE;
 	
-	draw_pline(in, in->height/2, in->width/2 - lenth -s, in->width/2 - lenth + lenth/2 -s, 0);
-	draw_pline(in, in->height/2, in->width/2 + lenth/2 + s, in->width/2 + lenth + s, 0);
-	draw_vline(in, in->width/2, in->height/2 - lenth -s, in->height/2 - lenth + lenth/2 -s, 0);
-	draw_vline(in, in->width/2, in->height/2 + lenth/2 + s, in->height/2 + lenth +s, 0);
+	draw_pline(in, in->height/2, in->width/2 - lenth -s, in->width/2 - lenth + lenth/2 -s);
+	draw_pline(in, in->height/2, in->width/2 + lenth/2 + s, in->width/2 + lenth + s);
+	draw_vline(in, in->width/2, in->height/2 - lenth -s, in->height/2 - lenth + lenth/2 -s);
+	draw_vline(in, in->width/2, in->height/2 + lenth/2 + s, in->height/2 + lenth +s);
 	scale++;
 }
 
@@ -321,8 +386,6 @@ static int yuv2yuv(AVFrame *in, uint8_t *ret){
 
 
 
-
-
 static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 {
     AVFilterContext *ctx = inlink->dst;
@@ -331,7 +394,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 	int bbox[4];
 	double mret = 0;
 
-	//av_log(NULL, AV_LOG_INFO, "here 1\n");
 	
     //AVFrame *out;
 	//int inplace = 0;
@@ -409,10 +471,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 			//test_picture(yuv420p, matcher);
 			//av_log(NULL, AV_LOG_INFO, "here2\n");
 			
-			bbox[0] = in->width/2-60;
-			bbox[1] = in->height/2-60;
-			bbox[2] = 120;
-			bbox[3] = 120;
+			bbox[0] = in->width/2-d/2;
+			bbox[1] = in->height/2-d/2;
+			bbox[2] = d;
+			bbox[3] = d;
 			//av_log(NULL, AV_LOG_INFO, "here3\n");
 			initMatcher(rgb, bbox, matcher);
 			//av_log(NULL, AV_LOG_INFO, "here4\n");
@@ -476,12 +538,23 @@ static av_cold void uninit(AVFilterContext *ctx)
 }
 
 
+static int config_props(AVFilterLink *inlink)
+{
+	pxfmt = inlink->format; 
+	h = inlink->h;
+	w = inlink->w;
+
+	d = w/5;
+	av_log(NULL, AV_LOG_INFO, "pxfmt %d, w %d, h %d\n", pxfmt, w, h);
+	return 0;
+}
 
 
 static const AVFilterPad foobar_inputs[] = {
     {
         .name         = "default",
         .type         = AVMEDIA_TYPE_VIDEO,
+        .config_props = config_props,
         .filter_frame = filter_frame,
     },
     { NULL }
