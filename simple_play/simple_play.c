@@ -46,13 +46,19 @@ static int play(){
 int main(){
     	int flags;
 	int ret;
+
+	zffqueue_map();
+	test_data = malloc(zffqueue_get_onesz()/4);
+	test_linesz = zffqueue_get_linesz()/2; 
+	memset(test_data, 128, zffqueue_get_onesz()/4);
+
 	ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);
 	if(ret != 0){
 		printf("SDL init error\n");
 		exit(1);
 	}
 	flags = SDL_INIT_VIDEO|SDL_WINDOW_BORDERLESS;
-        window = SDL_CreateWindow("simple_play", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, flags);
+        window = SDL_CreateWindow("simple_play", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, zffqueue_get_linesz(), zffqueue_get_onesz()/zffqueue_get_linesz(), flags);
 	if(!window){
 		printf("window error\n");
 		exit(1);
@@ -73,10 +79,6 @@ int main(){
 	signal(SIGHUP , sigterm_handlerz2);
 	signal(SIGTERM , sigterm_handlerz2);
 
-	zffqueue_map();
-	test_data = malloc(zffqueue_get_onesz()/4);
-	test_linesz = zffqueue_get_linesz()/2; 
-	memset(test_data, 128, zffqueue_get_onesz()/4);
 
 	while(1){
 		if(play() < 0){
