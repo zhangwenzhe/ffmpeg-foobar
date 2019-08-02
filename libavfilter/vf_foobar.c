@@ -14,6 +14,7 @@
 #include "internal.h"
 #include "video.h"
 #include <mymatcher.h>
+#include <zffqueue.h>
 
 
 #define SCALE_TIME 7
@@ -42,6 +43,7 @@ static int pxfmt = 0;
 static int w = 0;
 static int h = 0;
 static int d = 0;
+static int zfq_flag = 0;
 
 /*
 typedef struct FoobarContext {
@@ -139,6 +141,7 @@ static av_cold int init(AVFilterContext *ctx)
 	const FoobarContext * foobar = ctx->priv;
 	signal(SIGTSTP , sigterm_handlerz2);
 	
+	
 	av_log(NULL, AV_LOG_INFO, "autotrigger %d\n", foobar->mode);
 	
     return 0;
@@ -185,6 +188,7 @@ static void print_once(int pxfmt){
 }
 
 static void draw_vline(AVFrame *in, int x, int yfrom, int yto){
+	return draw_vline_GRAY8(in, x, yfrom, yto);
 	if(pxfmt == AV_PIX_FMT_GRAY8){
 		return draw_vline_GRAY8(in, x, yfrom, yto);
 	}else if(pxfmt == AV_PIX_FMT_YUV420P){
@@ -212,6 +216,7 @@ static void draw_pline_YUV420P(AVFrame *in, int y, int xfrom, int xto){
 }
 
 static void draw_pline(AVFrame *in, int y, int xfrom, int xto){
+	return draw_pline_GRAY8(in, y, xfrom, xto);
 	if(pxfmt == AV_PIX_FMT_GRAY8){
 		return draw_pline_GRAY8(in, y, xfrom, xto);
 	}else if(pxfmt == AV_PIX_FMT_YUV420P){
@@ -405,6 +410,13 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 	int bbox[4];
 	double mret = 0;
 
+	if(!zfq_flag){
+		zffqueue_init(in->linesize[0] * in->height, 100, in->linesize[0]);
+		zfq_flag = 1;
+	}
+
+	//printf("0 %d, 1 %d, 2 %d\n", in->linesize[0], in->linesize[1], in->linesize[2]);
+
 	
     //AVFrame *out;
 	//int inplace = 0;
@@ -540,6 +552,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 	}	
 	
     
+	zffqueue_put(in->data[0]);
     return ff_filter_frame(outlink, in);
 }
 
