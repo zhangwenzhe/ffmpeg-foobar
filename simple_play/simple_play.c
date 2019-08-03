@@ -48,9 +48,14 @@ int main(){
 	int ret;
 
 	zffqueue_map();
-	test_data = malloc(zffqueue_get_onesz()/4);
-	test_linesz = zffqueue_get_linesz()/2; 
-	memset(test_data, 128, zffqueue_get_onesz()/4);
+	int onesz = zffqueue_get_onesz();
+	int linesz = zffqueue_get_linesz();
+	int w = linesz;
+	int h = onesz/linesz;
+	printf("onesz %d, linesz %d, w %d, h%d\n", onesz, linesz, w, h);
+	test_data = malloc(onesz/4);
+	test_linesz = linesz/2; 
+	memset(test_data, 128, onesz/4);
 
 	ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);
 	if(ret != 0){
@@ -58,7 +63,7 @@ int main(){
 		exit(1);
 	}
 	flags = SDL_INIT_VIDEO|SDL_WINDOW_BORDERLESS;
-        window = SDL_CreateWindow("simple_play", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, zffqueue_get_linesz(), zffqueue_get_onesz()/zffqueue_get_linesz(), flags);
+        window = SDL_CreateWindow("simple_play", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
 	if(!window){
 		printf("window error\n");
 		exit(1);
@@ -68,7 +73,7 @@ int main(){
 		printf("render error\n");
 		exit(1);
 	}
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_YV12/*SDL_PIXELFORMAT_IYUV*/, SDL_TEXTUREACCESS_STREAMING, 640, 480);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_YV12/*SDL_PIXELFORMAT_IYUV*/, SDL_TEXTUREACCESS_STREAMING, w, h);
 	if(!texture){
 		printf("texture error\n");
 		exit(1);

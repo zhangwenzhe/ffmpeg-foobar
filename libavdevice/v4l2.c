@@ -519,7 +519,8 @@ static int mmap_read_frame(AVFormatContext *ctx, AVPacket *pkt)
     // always keep at least one buffer queued
     av_assert0(atomic_load(&s->buffers_queued) >= 1);
 
-#ifdef V4L2_BUF_FLAG_ERROR
+#if 0
+//#ifdef V4L2_BUF_FLAG_ERROR
     if (buf.flags & V4L2_BUF_FLAG_ERROR) {
         av_log(ctx, AV_LOG_WARNING,
                "Dequeued v4l2 buffer contains corrupted data (%d bytes).\n",
@@ -533,7 +534,7 @@ static int mmap_read_frame(AVFormatContext *ctx, AVPacket *pkt)
         if (ctx->video_codec_id == AV_CODEC_ID_CPIA)
             s->frame_size = buf.bytesused;
 
-        if (s->frame_size > 0 && buf.bytesused != s->frame_size) {
+        if (0 && s->frame_size > 0 && buf.bytesused != s->frame_size) {
             av_log(ctx, AV_LOG_ERROR,
                    "Dequeued v4l2 buffer contains %d bytes, but %d were expected. Flags: 0x%08X.\n",
                    buf.bytesused, s->frame_size, buf.flags);

@@ -44,7 +44,7 @@ static int w = 0;
 static int h = 0;
 static int d = 0;
 static int zfq_flag = 0;
-
+static int opt = 0;
 /*
 typedef struct FoobarContext {
 	int autotrigger;
@@ -411,6 +411,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 	double mret = 0;
 
 	if(!zfq_flag){
+		av_log(NULL, AV_LOG_INFO, "zffqueue init linesize %d, height %d\n", in->linesize[0], in->height);
 		zffqueue_init(in->linesize[0] * in->height, 100, in->linesize[0]);
 		zfq_flag = 1;
 	}
@@ -463,94 +464,94 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 	//av_log(NULL, AV_LOG_INFO, "format is %d, width %d, height %d, %d, %d\n", 
 		//in->format, in->width, in->height, 
 		//in->linesize[0], in->linesize[1]);//zwz
+	if(opt++%3 == 0){
+		if(zswitch2){//TODO
+			/*
+			   if(yuv420p == NULL){
+			   yuv420p = av_malloc(in->width * in->height + in->width * in->height/2);
+			   }
+			 */
+			/*
+			   if(rgb == NULL){
+			   rgb = av_malloc(in->width * in->height * 3);
+			   }
+			 */
 
-	if(zswitch2){//TODO
-		/*
-		if(yuv420p == NULL){
-			yuv420p = av_malloc(in->width * in->height + in->width * in->height/2);
-		}
-		*/
-		/*
-		if(rgb == NULL){
-			rgb = av_malloc(in->width * in->height * 3);
-		}
-		*/
-		
-		
-		
-		/*set rgb*/
-		//make_grey(in);
-		//av_log(NULL, AV_LOG_INFO, "here1\n");
-		//yuv2rgb(in, rgb);
-		//yuv2grey(in, rgb);
-		rgb = in->data[0];
-		//av_log(NULL, AV_LOG_INFO, "here2\n");
-		//yuv2yuv(in, yuv420p);
-		
 
-		if(matcher == NULL){
+
+			/*set rgb*/
+			//make_grey(in);
 			//av_log(NULL, AV_LOG_INFO, "here1\n");
-			matcher = createMatcher(in->height, in->width, 0);
-			//test_picture(yuv420p, matcher);
+			//yuv2rgb(in, rgb);
+			//yuv2grey(in, rgb);
+			rgb = in->data[0];
 			//av_log(NULL, AV_LOG_INFO, "here2\n");
-			
-			bbox[0] = in->width/2-d/2;
-			bbox[1] = in->height/2-d/2;
-			bbox[2] = d;
-			bbox[3] = d;
-			//av_log(NULL, AV_LOG_INFO, "here3\n");
-			initMatcher(rgb, bbox, matcher);
-			//av_log(NULL, AV_LOG_INFO, "here4\n");
-			
-		}else{
-			bbox[0] = 0;
-			bbox[1] = 0;
-			bbox[2] = 0;
-			bbox[3] = 0;
-			//av_log(NULL, AV_LOG_INFO, "here5\n");
-			mret = matchMatcher(rgb, bbox, matcher);
-			//av_log(NULL, AV_LOG_INFO, "here6\n");
-		}
+			//yuv2yuv(in, yuv420p);
 
-		//av_log(NULL, AV_LOG_INFO, "box is %d, %d, %d, %d\n", 
+
+			if(matcher == NULL){
+				//av_log(NULL, AV_LOG_INFO, "here1\n");
+				matcher = createMatcher(in->height, in->width, 0);
+				//test_picture(yuv420p, matcher);
+				//av_log(NULL, AV_LOG_INFO, "here2\n");
+
+				bbox[0] = in->width/2-d/2;
+				bbox[1] = in->height/2-d/2;
+				bbox[2] = d;
+				bbox[3] = d;
+				//av_log(NULL, AV_LOG_INFO, "here3\n");
+				initMatcher(rgb, bbox, matcher);
+				//av_log(NULL, AV_LOG_INFO, "here4\n");
+
+			}else{
+				bbox[0] = 0;
+				bbox[1] = 0;
+				bbox[2] = 0;
+				bbox[3] = 0;
+				//av_log(NULL, AV_LOG_INFO, "here5\n");
+				mret = matchMatcher(rgb, bbox, matcher);
+				//av_log(NULL, AV_LOG_INFO, "here6\n");
+			}
+
+			//av_log(NULL, AV_LOG_INFO, "box is %d, %d, %d, %d\n", 
 			//bbox[0], bbox[1], bbox[2], bbox[3]);
 
-		
-		if(mret >= 0.8){
-			draw_box(in, bbox[0], bbox[1], bbox[2], bbox[3]);
-			if(vnum < NUM_XY){
-				x[vnum] = bbox[0] + 60;
-				y[vnum] = bbox[1] + 60;
-				vnum++;
+
+			if(mret >= 0.8){
+				draw_box(in, bbox[0], bbox[1], bbox[2], bbox[3]);
+				if(vnum < NUM_XY){
+					x[vnum] = bbox[0] + 60;
+					y[vnum] = bbox[1] + 60;
+					vnum++;
+				}
 			}
-		}
-		
 
-	}else{// see if there is any previous resource to be freed
-		
-		if(matcher){
-			//av_log(NULL, AV_LOG_INFO, "here7\n");
-			deleteMatcher(matcher);
-			//av_log(NULL, AV_LOG_INFO, "here8\n");
-			matcher = NULL;
-		}
 
-		/*
-		if(yuv420p){
-			av_free(yuv420p);
-			yuv420p = NULL;
-		}
-		*/
+		}else{// see if there is any previous resource to be freed
 
-		/*
-		if(rgb){
-			av_free(rgb);
-			rgb = NULL;
-		}
-		*/
-		
+			if(matcher){
+				//av_log(NULL, AV_LOG_INFO, "here7\n");
+				deleteMatcher(matcher);
+				//av_log(NULL, AV_LOG_INFO, "here8\n");
+				matcher = NULL;
+			}
+
+			/*
+			   if(yuv420p){
+			   av_free(yuv420p);
+			   yuv420p = NULL;
+			   }
+			 */
+
+			/*
+			   if(rgb){
+			   av_free(rgb);
+			   rgb = NULL;
+			   }
+			 */
+
+		}	
 	}	
-	
     
 	zffqueue_put(in->data[0]);
     return ff_filter_frame(outlink, in);
