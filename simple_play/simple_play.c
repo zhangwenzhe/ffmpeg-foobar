@@ -5,6 +5,7 @@
 #include <SDL_thread.h>
 #include <zffqueue.h>
 #include <string.h>
+#include <unistd.h>
 #include "libavutil/frame.h"
 
 static SDL_Window *window;
@@ -29,8 +30,11 @@ static int play(){
 	void *data = zffqueue_get();
 	int linesz= zffqueue_get_linesz();
 	//printf("sz %d\n", sz);
-	if(data == NULL)
-		return 0; 
+	if(data == NULL){
+		nice(1);
+		return 0;
+	} 
+	nice(-2);
     	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     	SDL_RenderClear(renderer);
 
