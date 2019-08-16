@@ -42,7 +42,7 @@ static int play(){
 
     	SDL_RenderCopy(renderer, texture, NULL, NULL);
     	SDL_RenderPresent(renderer);
-	return 0;
+	return 1;
 }
 
 int main(){
