@@ -31,10 +31,8 @@ static int play(){
 	int linesz= zffqueue_get_linesz();
 	//printf("sz %d\n", sz);
 	if(data == NULL){
-		nice(1);
 		return 0;
 	} 
-	nice(-2);
     	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     	SDL_RenderClear(renderer);
 
@@ -66,7 +64,12 @@ int main(){
 		printf("SDL init error\n");
 		exit(1);
 	}
+
+	SDL_EventState(SDL_SYSWMEVENT, SDL_IGNORE);
+	SDL_EventState(SDL_USEREVENT, SDL_IGNORE);
+
 	flags = SDL_INIT_VIDEO|SDL_WINDOW_BORDERLESS;
+	//flags = SDL_INIT_VIDEO|SDL_WINDOW_RESIZABLE;
         window = SDL_CreateWindow("simple_play", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
 	if(!window){
 		printf("window error\n");
@@ -88,14 +91,29 @@ int main(){
 	signal(SIGHUP , sigterm_handlerz2);
 	signal(SIGTERM , sigterm_handlerz2);
 
+	SDL_Event event;
 
 	while(1){
-		if(play() < 0){
-			break;
+		SDL_PumpEvents();
+		while (!SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT)) {
+			if(play() == 0){//no data in quque, backoff
+				nice(1);
+			}else{
+				nice(-2);//data in queue
+			}
+			SDL_PumpEvents();
+		}
+		
+		switch (event.type) {
+			case SDL_QUIT:
+				printf("quit evnt\n");
+				goto out;
+			default:
+				break;
 		}
 	}
 
-
+out:
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
     	SDL_Quit();

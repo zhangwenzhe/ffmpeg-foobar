@@ -8,6 +8,7 @@
 #include <signal.h>
 #include "libavutil/avassert.h"
 #include "libavutil/imgutils.h"
+#include "libswscale/swscale.h" 
 #include "libavutil/opt.h"
 #include "avfilter.h"
 #include "formats.h"
@@ -20,15 +21,15 @@
 #define SCALE_TIME 7
 #define SCALE_RANGE 3
 
+#define DCT_W 640
+#define DCT_H 480
 
-#define MAX(a,b)    (((a) > (b)) ? (a) : (b))
-#define MIN(a,b)    (((a) < (b)) ? (a) : (b))
+static struct SwsContext *swsc = NULL;
+static void * dtcbuf = NULL;
 
 
-
-static int zswitch2=0;
+static int zswitch2=0; //switch that if detect is enabled
 static uint8_t *rgb = NULL;
-//static uint8_t *yuv420p = NULL;
 static void * matcher = NULL;
 static int scale=0;
 static int target=0;
@@ -44,26 +45,11 @@ static int w = 0;
 static int h = 0;
 static int d = 0;
 static int zfq_flag = 0;
-static int opt = 0;
-/*
-typedef struct FoobarContext {
-	int autotrigger;
-    const AVClass *class;
-} FoobarContext;
-
-#define OFFSET(x) offsetof(FoobarContext, x)
-
-static const AVOption foobar_options[] = {
-    { "autotrigger", "autotrigger?",  OFFSET(autotrigger), AV_OPT_TYPE_INT, {.i64=0}, 0, 1, AV_OPT_FLAG_VIDEO_PARAM, NULL },
-    { NULL }
-};
-*/
 
 enum FilterMode {
     MODE_NORMAL = 0,
     MODE_AUTOTRIGGER
 };
-
 
 typedef struct FoobarContext {
     const AVClass *class;
@@ -77,9 +63,7 @@ static const AVOption foobar_options[] = {
     { NULL }
 };
 
-
 AVFILTER_DEFINE_CLASS(foobar);
-
 
 static int min(int a, int b){
 	return a?a<b:b;
@@ -140,7 +124,6 @@ static av_cold int init(AVFilterContext *ctx)
 {
 	const FoobarContext * foobar = ctx->priv;
 	signal(SIGTSTP , sigterm_handlerz2);
-	
 	
 	av_log(NULL, AV_LOG_INFO, "autotrigger %d\n", foobar->mode);
 	
@@ -264,12 +247,6 @@ static void draw_box(AVFrame *in, int x, int y, int w, int h){
 		target=0;
 	}
 
-	//av_log(NULL, AV_LOG_INFO, "draw_box x %d, y %d, w %d, h %d, rx %d, ry %d\n", 
-		//y, x, w, h, x+w, y+h);
-	
-	//draw_pline_y(in, y, x, x+w, 255);
-	//draw_pline_y(in, y+h, x, x+w, 255);
-	
 	draw_pline(in, y, x, x+w);
 	draw_pline(in, y+h, x, x+w);
 	draw_vline(in, x, y, y+h);
@@ -295,7 +272,6 @@ static void draw_box(AVFrame *in, int x, int y, int w, int h){
 	//scale++;
 //}
 
-
 static void draw_cross(AVFrame *in){
 	int lenth = in->height/20;
 	int s;
@@ -315,98 +291,19 @@ static void draw_cross(AVFrame *in){
 	scale++;
 }
 
-static void make_grey(AVFrame *in){
-	int zi;
-	if(in->format == 0){
-		for(zi=0; zi < in->width * in->height / 4; zi++){
-			if(in->data[1][zi] != 0 && in->data[2][zi] != 0){
-				in->data[1][zi] = 128;
-				in->data[2][zi] = 128;
-			}
-		}
-		
-		
-	}/*else if(in->format == 1){
-		for(zi=0; zi < in->width * in->height * 2; zi++){
-			if(zi%2 == 1){
-				in->data[0][zi] = 128;
-			}
-
-		}
-	}
-	*/
+static int adjust_box(int * box){
+	box[0] = box[0]*w/DCT_W;
+	box[1] = box[1]*h/DCT_H;
+	box[2] = box[2]*w/DCT_W;
+	box[3] = box[2];
+	return 0;	
 }
-
-static inline void _yuv2rgb(uint8_t *out, int ridx, int Y, int U, int V)
-{
-    out[ridx]     = av_clip_uint8(Y +              (91881 * V + 32768 >> 16));
-    out[1]        = av_clip_uint8(Y + (-22554 * U - 46802 * V + 32768 >> 16));
-    out[2 - ridx] = av_clip_uint8(Y + (116130 * U             + 32768 >> 16));
-}
-
-static inline uint8_t bound(uint8_t a, uint8_t b, uint8_t c){
-	if(b > c){
-		return c;
-	}else if(b < a){
-		return a;
-	}else{
-		return b;
-	}
-}
-
-static inline void _yuv2rgb2(uint8_t *out, int ridx, int Y, int U, int V)
-{
-    uint8_t R;
-    uint8_t G;
-    uint8_t B;
-
-	R = (int)((Y - 16) + (1.370705 * (V - 128)));
-	G = (int)((Y - 16) - (0.698001 * (V - 128)) - (0.337633 * (U - 128)));
-	B = (int)((Y - 16) + (1.732446 * (U - 128)));
-
-	R = bound(0, R, 255);
-	G = bound(0, G, 255);
-	B = bound(0, B, 255);
-
-	out[ridx]     = R;
-    out[1]        = G;
-    out[2 - ridx] = B;
-}
-
-
-static int yuv2rgb(AVFrame *in, uint8_t *ret){
-	if(in->format == 0){
-		int i;
-		for(i=0; i<in->width * in->height; i++){
-			_yuv2rgb2(ret+i*3, 2, in->data[0][i], in->data[1][i/4], in->data[2][i/4]);
-		}
-		return 0;
-	}
-	return 1;
-}
-
-static int yuv2grey(AVFrame *in, uint8_t *ret){
-	if(in->format == 0){
-		memcpy(ret, in->data[0], in->width * in->height);
-		return 0;
-	}
-	return 1;
-}
-
-static int yuv2yuv(AVFrame *in, uint8_t *ret){
-	memcpy(ret, in->data[0], in->width * in->height);
-	memcpy(ret + in->width * in->height, in->data[1], in->width * in->height/2);
-	memcpy(ret + in->width * in->height/2, in->data[2], in->width * in->height/2);
-	return 1;
-}
-
-
 
 static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 {
-    AVFilterContext *ctx = inlink->dst;
-    FoobarContext *foobar = ctx->priv;
-    AVFilterLink *outlink = ctx->outputs[0];
+	AVFilterContext *ctx = inlink->dst;
+	FoobarContext *foobar = ctx->priv;
+	AVFilterLink *outlink = ctx->outputs[0];
 	int bbox[4];
 	double mret = 0;
 
@@ -415,32 +312,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 		zffqueue_init(in->linesize[0] * in->height, 100, in->linesize[0]);
 		zfq_flag = 1;
 	}
-
-	//printf("0 %d, 1 %d, 2 %d\n", in->linesize[0], in->linesize[1], in->linesize[2]);
-
-	
-    //AVFrame *out;
-	//int inplace = 0;
-
-	/*
-	if(!zswitch2){	
-		return ff_filter_frame(outlink, in);//zwz
-	}
-	*/
-
-	/*
-	if (av_frame_is_writable(in)) {
-		inplace = 1;
-        out = in;
-    } else {
-        out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
-        if (!out) {
-            av_frame_free(&in);
-            return AVERROR(ENOMEM);
-        }
-        av_frame_copy_props(out, in);
-    }
-    */
 
 	av_frame_make_writable(in);
 	draw_cross(in);
@@ -461,100 +332,56 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 		}
 	}
 
-	//av_log(NULL, AV_LOG_INFO, "format is %d, width %d, height %d, %d, %d\n", 
-		//in->format, in->width, in->height, 
-		//in->linesize[0], in->linesize[1]);//zwz
-	if(opt++%3 == 0){
-		if(zswitch2){//TODO
+	if(zswitch2){//TODO
+		//rgb = in->data[0];
+		int outlinesize[4] = {DCT_W, 0, 0, 0};
+		sws_scale(swsc, in->data, in->linesize, 0, h, &dtcbuf, outlinesize);
+		rgb = dtcbuf;
+
+		if(matcher == NULL){
 			/*
-			   if(yuv420p == NULL){
-			   yuv420p = av_malloc(in->width * in->height + in->width * in->height/2);
-			   }
-			 */
-			/*
-			   if(rgb == NULL){
-			   rgb = av_malloc(in->width * in->height * 3);
-			   }
-			 */
+			matcher = createMatcher(in->height, in->width, 0);
+			bbox[0] = in->width/2-d/2;
+			bbox[1] = in->height/2-d/2;
+			bbox[2] = d;
+			bbox[3] = d;
+			*/
+			matcher = createMatcher(DCT_H, DCT_W, 0);
+			bbox[0] = DCT_W/2-d/2;
+			bbox[1] = DCT_H/2-d/2;
+			bbox[2] = d;
+			bbox[3] = d;
+			initMatcher(rgb, bbox, matcher);
+			//av_log(NULL, AV_LOG_INFO, "here4\n");
 
+		}else{
+			bbox[0] = 0;
+			bbox[1] = 0;
+			bbox[2] = 0;
+			bbox[3] = 0;
+			mret = matchMatcher(rgb, bbox, matcher);
+		}
 
-
-			/*set rgb*/
-			//make_grey(in);
-			//av_log(NULL, AV_LOG_INFO, "here1\n");
-			//yuv2rgb(in, rgb);
-			//yuv2grey(in, rgb);
-			rgb = in->data[0];
-			//av_log(NULL, AV_LOG_INFO, "here2\n");
-			//yuv2yuv(in, yuv420p);
-
-
-			if(matcher == NULL){
-				//av_log(NULL, AV_LOG_INFO, "here1\n");
-				matcher = createMatcher(in->height, in->width, 0);
-				//test_picture(yuv420p, matcher);
-				//av_log(NULL, AV_LOG_INFO, "here2\n");
-
-				bbox[0] = in->width/2-d/2;
-				bbox[1] = in->height/2-d/2;
-				bbox[2] = d;
-				bbox[3] = d;
-				//av_log(NULL, AV_LOG_INFO, "here3\n");
-				initMatcher(rgb, bbox, matcher);
-				//av_log(NULL, AV_LOG_INFO, "here4\n");
-
-			}else{
-				bbox[0] = 0;
-				bbox[1] = 0;
-				bbox[2] = 0;
-				bbox[3] = 0;
-				//av_log(NULL, AV_LOG_INFO, "here5\n");
-				mret = matchMatcher(rgb, bbox, matcher);
-				//av_log(NULL, AV_LOG_INFO, "here6\n");
+		if(mret >= 0.8){
+			adjust_box(bbox);
+			draw_box(in, bbox[0], bbox[1], bbox[2], bbox[3]);
+			if(vnum < NUM_XY){
+				x[vnum] = bbox[0] + d/2;
+				y[vnum] = bbox[1] + d/2;
+				vnum++;
 			}
+		}
+	}else{// see if there is any previous resource to be freed
 
-			//av_log(NULL, AV_LOG_INFO, "box is %d, %d, %d, %d\n", 
-			//bbox[0], bbox[1], bbox[2], bbox[3]);
-
-
-			if(mret >= 0.8){
-				draw_box(in, bbox[0], bbox[1], bbox[2], bbox[3]);
-				if(vnum < NUM_XY){
-					x[vnum] = bbox[0] + 60;
-					y[vnum] = bbox[1] + 60;
-					vnum++;
-				}
-			}
-
-
-		}else{// see if there is any previous resource to be freed
-
-			if(matcher){
-				//av_log(NULL, AV_LOG_INFO, "here7\n");
-				deleteMatcher(matcher);
-				//av_log(NULL, AV_LOG_INFO, "here8\n");
-				matcher = NULL;
-			}
-
-			/*
-			   if(yuv420p){
-			   av_free(yuv420p);
-			   yuv420p = NULL;
-			   }
-			 */
-
-			/*
-			   if(rgb){
-			   av_free(rgb);
-			   rgb = NULL;
-			   }
-			 */
-
-		}	
+		if(matcher){
+			deleteMatcher(matcher);
+			matcher = NULL;
+		}
 	}	
-    
+
+
 	zffqueue_put(in->data[0]);
-    return ff_filter_frame(outlink, in);
+	return ff_filter_frame(outlink, in);
 }
 
 static av_cold void uninit(AVFilterContext *ctx)
@@ -568,9 +395,17 @@ static int config_props(AVFilterLink *inlink)
 	pxfmt = inlink->format; 
 	h = inlink->h;
 	w = inlink->w;
+	
+	//init sws scale context
+	swsc = sws_getContext(w, h, AV_PIX_FMT_GRAY8, DCT_W, DCT_H, AV_PIX_FMT_GRAY8, SWS_POINT, NULL, NULL, NULL);
+	if(swsc == NULL){
+		av_log(NULL, AV_LOG_INFO, "error sws context");
+	}
+	
+	dtcbuf = malloc(DCT_W * DCT_H);
 
-	d = w/5;
-	av_log(NULL, AV_LOG_INFO, "pxfmt %d, w %d, h %d\n", pxfmt, w, h);
+	d = DCT_W/5;
+	av_log(NULL, AV_LOG_INFO, "pxfmt %d, w %d, h %d, dctw %d, dcth %d, d %d\n", pxfmt, w, h, DCT_W, DCT_H, d);
 	return 0;
 }
 
